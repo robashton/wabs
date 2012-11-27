@@ -1,0 +1,291 @@
+---- Working with JavaScript -------
+
+String concatenation
+   Array.Join vs +=
+   Intermediate strings
+
+Object creation
+   Impacts garbage collection
+   Can be expensive
+   Re-use objects (example: glMatrix)
+
+Garbage collection
+
+Working with arrays
+   Same types
+   Defer to UI thread for large loops
+   Cheaper to create arrays than maintain null/etc
+   Game entity example
+
+   Show how we can remove the O(n^2) by using spacial hash
+   The best way to get rid of a performance problem is to... 
+     get rid of the performance problem
+
+Variable scope searching
+   Global variables
+   Local variables with anonymous functions
+
+Class creation
+   Function with local variables 
+   Use the prototype luke!
+  
+Talk about V8 specifically
+   Initialize object members
+      Hidden classes in V8
+   Use number types consistently
+   Use argument types consistently (monomorphism vs polymorphism)
+   Two types of compiler in V8 (hot paths get super optimised)
+
+   Firefox does something similar with types and type inference
+   It uses static analysis rather than in
+--- Working in the Browser -----
+
+Crossing boundaries into the DOM
+
+Change CSS not style properties
+    Minimise number of reflows
+
+----- Hints ------
+
+ V8 profiler
+ Heap snapshot
+ Garbage collection watcher
+ CSS selector profiler
+ Google Closure
+ Jsperf
+ Benchmark driven development
+ If it hurts, stop doing it
+ Coffeescript/typescript
+
+-------------------------------------------------------
+
+Introduction - Rob Ashton, developer
+
+Background - I create games for learning, this is what I have learned
+
+Two types of performance optimisation
+   - JavaScript itself 
+   - Interaction with the browser (CSS/etc)
+   - will cover both of these in this session, but focus mostly on the first
+
+JavaScript is a dynamic language
+  - There is limited compilation possible
+  - There are rules we have to follow, profiler paths follow those rules
+  - By following some patterns, the engine can optimise for us
+
+[5 minutes]
+
+An example of a JS rule: "variable scoping"
+    - First off, demonstrate that variables are function level
+    - Example of a global variable being accessed within a loop
+    - Bring the variable closer 
+    - Make a local copy of that variable for that loop
+
+[10 minutes]
+
+An example of a JS rule: "object creation"
+   - Can create object literals
+      - A factory can churn these out
+      - The browser has no way to follow this as a pattern
+   - Can use constructor functions
+      - Great, they now have a prototype
+      - But we're creating functions all over the place
+   - Can use prototypes
+      - Hey, this is an object, this is the state that it has, these are the methods they have
+
+[20 minutes]
+
+Taking that further, V8
+   - V8 creates hidden classes
+   - Show point with x,y 
+   - Add the z
+   - Two hidden classes
+   - Initialize all fields in the same order with the same type!
+
+[25 minutes]
+
+The same goes for method calls themselves
+   - add(x, y) {}
+   - addNumbers()
+   - addString()
+   - Prefer mono-morphism
+
+Spidermonkey (Firefox) is similar, except it tries to do some of this via static analysis in advance
+
+[30 minutes]
+
+An example of a JS rule: "Array usage"
+   - We commonly use small arrays with contiguous values starting at zero
+   - We also (less) commonly use huge arrays with sparse kes
+   - V8 is therefore optimised for those scenarios
+   
+   - An example of that first one
+
+    var myArray = new Array();
+    for(var i = 0; i < 100; i++)
+      myArray[i] = i * 10;
+
+    // We now have a contiguous array, whose hidden class is 'int'
+
+    delete myArray[1];
+
+    // Oh my
+
+    myArray[5] = 5.2
+
+    // Oh "double" my
+
+    It's not predictable, conversions are going to be required
+    
+Let's scale it up to see the problem
+
+    var myArray = new Array()
+    for(var i = 0 ; i < 1000000 ; i++)
+      myArray[i] = i % 2 === 0 ? i : null
+
+    console.time();
+
+    for(var i = 0 ; i < myArray.length; i++)
+      console.log(myArray[i]);
+
+    console.endtime();
+    
+NB: This doesn't work with objects, only values
+
+[35 minutes]
+
+Okay great, so we've learned
+
+   - Stick with basic JS constructs
+   - Be consistent with typing and usage
+
+What else?
+
+    function calculateCollision(entity, ground) {
+       return {
+         left: ground.overlapsAt(entity.x),
+         right: ground.overlapsAt(entity.y)
+       }
+    }
+  
+What's wrong with this picture?
+[
+How about now?
+
+  function update() {
+    this.forEachEntity(function(entity) {
+       var result = calculateCollision(entity, ground);
+       if(result.left || result.right)
+         entity.kill();
+    })
+  }
+
+How about now?
+
+  setInterval(update, 1000/30);
+
+What does the profiler say?
+
+     - Screenshot
+
+What does the garbage collection profiler say?
+   
+     - Screenshot
+
+What can do to make this better?
+
+   function calculateCollision(entity, ground, res) {
+     res = res || {}
+     res.left: ground.overlapsAt(entity.x)
+     res.right: ground.overlapsAt(entity.y)
+     return res
+   }
+
+  function update() {
+    var result = {}
+    this.forEachEntity(function(entity) {
+       calculateCollision(entity, ground, result);
+       if(result.left || result.right)
+         entity.kill();
+    })
+  }
+      
+To mitigate this, Firefox and Chrome actually have incremental garbage collectors
+
+   - Screenshot 
+
+But in any long running application with a hot loop, avoid returning tuples as a standard practise.
+
+This is actually similar to the common JSLint complaint
+
+   "don't create functions in a loop"
+
+[40 minutes]
+
+- Working with the browser?
+
+  This is actually one of the more obvious things, in a browser you have two worlds
+
+    - The native engine/browser world
+    - Code written in JS
+
+  Both of these are reasonably fast, but crossing between them is expensive
+
+  Trivial example
+
+     var z = Math.min(x,y)
+
+  vs
+     var z = x > y ? y : x
+
+Something more interesting
+
+   var element = document.getElementById('pinkiepie'); 
+   element.style.width = '100px'
+   element.style.height = '100px'
+   element.style.background.color = '#000'
+
+vs
+
+   element.setAttributeValue('class', 'awesome');
+
+Not only this, but width/height will both cause reflows!!
+(A reflow is where the layout changes, forcing the browser to re-calculate and re-draw)
+
+The same goes for calls to HTML5 canvas
+
+   canvas.fillRect(10,10,1,1);
+   canvas.fillRect(10,11,1,1);
+   canvas.fillRect(10,12,1,1);
+      
+vs
+
+   canvas.fillRect(10,10, 1,3);
+
+or even in insane cases
+
+   canvas.setData(rawData); // !!
+
+
+[50 minutes]
+
+Round-up
+
+   - Stick with basic JS constructs
+   - Be consistent with typing and usage
+   - Don't be casually creating objects
+   - Don't be calling across boundaries too much
+   - Actually, most of this is irrelevant for most apps
+   - We can get away with measuring our own use, but that's another talk!
+
+- List of tools
+
+ V8 profiler
+ Heap snapshot tool
+ Garbage collection watcher
+ CSS selector profiler
+ Google Closure
+ Jsperf
+ Benchmark driven development
+ Good algorithms (the best optimisation is an O(n^2) to O(n)
+ Coffeescript/typescript (no really)
