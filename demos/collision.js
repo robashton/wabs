@@ -21,39 +21,38 @@
     }
 
     Ground.prototype = {
-      overlapsAt: function(position) {
-        var leftx = parseInt(position[0], 10)
+      overlapsAt: function(x, y) {
+        var leftx = parseInt(x, 10)
         var lefty = this.heights[leftx]
         var righty = this.heights[leftx + 1]
-        var lerp = position[0] - leftx
+        var lerp = x - leftx
         var value = (lefty * (1.0-lerp)) + (righty * lerp)
-        return value <  position[1]
+        return value < y
       }
     }
 
-    function calculateCollision(ground, entity) {
-      return {
-        left: ground.overlapsAt(entity.position),
-        right: ground.overlapsAt([
-          entity.position[0] + entity.width, entity.position[1]])
-      }
+    function calculateCollision(ground, entity, res) {
+      res = res || {}
+      res.left = ground.overlapsAt(entity.position[0], entity.position[1]),
+      res.right = ground.overlapsAt(entity.position[0] + entity.width, entity.position[1])
+      return res;
     }
 
     var scene = [];
     var ground = new Ground();
-    for(var i =0 ; i < 100 ; i++)
+    for(var i =0 ; i < 20000 ; i++)
       scene.push(new Entity(Math.random() * 100, Math.random() * 100));
 
+    var res = {}
     function update() {
       for(var i = 0 ; i < scene.length; i++) {
         var entity = scene[i];
         entity.update();
-
-        var collision = calculateCollision(ground, entity);
+        var collision = calculateCollision(ground, entity, res);
         if(collision.left || collision.right)
           entity.kill();
       }
     }
-    setInterval(update, 1000/30);
+    setInterval(update, 1000 / 60);
 
 }.call(this));
