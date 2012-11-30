@@ -35,25 +35,18 @@
       }
     }
 
-    var i = 0
+    var container = document.getElementById('container') 
+    var fps = document.getElementById('fps')
     function update() {
       var start = new Date()
-      var container = document.getElementById('container') 
-      var fps = document.getElementById('fps')
-      var count = 0
-      
-      while(i < particles.length && count < 5000) {
+      for(var i = 0; i < particles.length; i++) {
         var particle = particles[i]
         var child = container.children[i]
         particle.left  = particle.left + particle.velx
         particle.top = particle.top + particle.vely
         child.style.left = particle.left + 'px'
         child.style.top = particle.top + 'px'
-        i++
-        count++
       }
-      if(i === particles.length)
-        i = 0
       var end = new Date()
       averageFrameTime += (end - start)
       averageFrameTime /= 2.0
