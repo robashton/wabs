@@ -6,11 +6,10 @@
     </div>
   </body>
   <script type="text/javascript">
-    var particleCount = 10000
+    var particleCount = 100
     var width = 800
     var height = 600 
     var averageFrameTime = 0
-    var particles = []
 
     function setupParticles() {
       var container = document.getElementById('container')
@@ -22,38 +21,27 @@
       for(var i = 0 ; i < particleCount; i++) {
         var child = document.createElement('div')
         child.style.position = 'absolute'
+        child.style.left = Math.random() * width + 'px'
+        child.style.top = Math.random() * height + 'px'
         child.style.width = '5px'
         child.style.height = '5px'
-        particles.push({
-          velx: (Math.random() * 20.0) - 10.0,
-          vely: (Math.random() * 20.0) - 10.0,
-          left : Math.random() * width,
-          top : Math.random() * height
-        })
+        child.velx = (Math.random() * 20.0) - 10.0
+        child.vely = (Math.random() * 20.0) - 10.0
         child.style['background-color'] = '#000'
         container.appendChild(child)
       }
     }
 
-    var i = 0
     function update() {
       var start = new Date()
       var container = document.getElementById('container') 
       var fps = document.getElementById('fps')
-      var count = 0
       
-      while(i < particles.length && count < 5000) {
-        var particle = particles[i]
+      for(var i = 0 ; i < container.children.length; i++) {
         var child = container.children[i]
-        particle.left  = particle.left + particle.velx
-        particle.top = particle.top + particle.vely
-        child.style.left = particle.left + 'px'
-        child.style.top = particle.top + 'px'
-        i++
-        count++
+        child.style.left  = child.offsetLeft + child.velx
+        child.style.top = child.offsetTop + child.vely
       }
-      if(i === particles.length)
-        i = 0
       var end = new Date()
       averageFrameTime += (end - start)
       averageFrameTime /= 2.0
